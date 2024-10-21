@@ -5,17 +5,15 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 
 import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
 
-@Document(collection = "DetallePedido")
-@Getter
-@Setter
+
+@Document(collection = "detalles_pedidos")
+
 @Data
 public class DetallePedido {
 
     @Id
-    private Integer id;
+    private String id;
     private Integer numero;
     private String direccion_envio;
     private Integer cantidad; 
