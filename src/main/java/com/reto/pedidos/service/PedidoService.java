@@ -22,6 +22,54 @@ public class PedidoService {
     @Autowired
     DetallePedidoRepository detallePedidoRepository;
 
+    public Mono<PedidoList> actualizarPedido(Integer idpedido, DetallePedido detalleActualizado) {
+        return pedidoRepository.findById(idpedido)
+                .flatMap(pedido -> {
+                    pedido.setDescripcion(detalleActualizado.getDescripcion());
+                    return pedidoRepository.save(pedido);
+                })
+                .flatMap(pedidoGuardado -> {
+                    // Actualiza el detalle del pedido
+                    return detallePedidoRepository.findById(pedidoGuardado.getIdpedido().toString())
+                            .flatMap(detalle -> {
+                                // Actualiza los campos del detalle
+                                detalle.setNumero(detalleActualizado.getNumero());
+                                detalle.setCantidad(detalleActualizado.getCantidad());
+                                detalle.setDescripcion(detalleActualizado.getDescripcion());
+                                detalle.setDireccion_envio(detalleActualizado.getDireccion_envio());
+                                detalle.setFecha_envio(detalleActualizado.getFecha_envio());
+                                detalle.setFecha_pedido(detalleActualizado.getFecha_pedido());
+                                return detallePedidoRepository.save(detalle); // Guarda el detalle actualizado
+                            })
+                            .then(Mono.just(pedidoGuardado)); // Devuelve el pedido actualizado
+                })
+                .map(pedidoGuardado -> {
+                    // Crea un PedidoList con los datos actualizados
+                    PedidoList pedidoList = new PedidoList();
+                    pedidoList.setIdpedido(pedidoGuardado.getIdpedido());
+                    pedidoList.setDetalle(detalleActualizado);
+                    return pedidoList;
+                })
+                .onErrorResume(e -> {
+                    // Manejo de errores
+                    System.err.println("Error al actualizar el pedido: " + e.getMessage());
+                    return Mono.empty(); // En caso de error, devuelve Mono vacío
+                });
+    }
+    
+
+    public Mono<Boolean> eliminar(Integer idpedido) {
+        // Primero, eliminar los detalles asociados al pedido
+        return detallePedidoRepository.deleteById(idpedido.toString())
+                .then(pedidoRepository.deleteById(idpedido))  
+                .then(Mono.just(true)) 
+                .onErrorResume(e -> {
+                    // Manejo de errores
+                    System.err.println("Error al eliminar el pedido: " + e.getMessage());
+                    return Mono.just(false); // En caso de error, devuelve false
+                });
+    }
+
     public Mono<PedidoList> guardarPedido(DetallePedido detallePedido) {
         // Fecha de guardado
         LocalDateTime fechaLocal = LocalDateTime.now();
