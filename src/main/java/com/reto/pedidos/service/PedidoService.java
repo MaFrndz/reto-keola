@@ -5,9 +5,11 @@ import org.springframework.stereotype.Service;
 
 import com.reto.pedidos.model.DetallePedido;
 import com.reto.pedidos.model.Pedido;
+import com.reto.pedidos.model.PedidoList;
 import com.reto.pedidos.repository.DetallePedidoRepository;
 import com.reto.pedidos.repository.PedidoRepository;
 
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import java.time.LocalDateTime;
 
@@ -20,9 +22,7 @@ public class PedidoService {
     @Autowired
     DetallePedidoRepository detallePedidoRepository;
 
-    
-
-    public Mono<Pedido> guardarPedido(DetallePedido detallePedido) {
+    public Mono<PedidoList> guardarPedido(DetallePedido detallePedido) {
         // Fecha de guardado
         LocalDateTime fechaLocal = LocalDateTime.now();
 
@@ -32,7 +32,17 @@ public class PedidoService {
 
         return pedidoRepository.save(pedido)
                 .flatMap(savedPedido -> guardarDetalle(savedPedido, detallePedido)
-                        .then(Mono.just(savedPedido))) // Simplificamos el flujo eliminando el chequeo nulo
+                        .then(Mono.just(savedPedido)))
+                .map( savedPedido -> {
+
+                    detallePedido.setId(savedPedido.getIdpedido().toString());
+                    detallePedido.setNumero(savedPedido.getIdpedido());
+
+                    PedidoList pedidoList = new PedidoList();
+                    pedidoList.setIdpedido(savedPedido.getIdpedido());
+                    pedidoList.setDetalle(detallePedido);
+                    return pedidoList; 
+                })
                 .onErrorResume(e -> {
                     // Manejo de errores
                     System.err.println("Error al guardar el pedido: " + e.getMessage());
@@ -62,14 +72,14 @@ public class PedidoService {
                 });
     }
 
-    // public Flux<PedidoList> listarPedido() {
-    //     return pedidoRepository.findAll()
-    //             .flatMap(pedido -> detallePedidoRepository.findByPedidoId(pedido.getIdpedido())
-    //                     .map(detalle -> {
-    //                         PedidoList pedidoList = new PedidoList();
-    //                         pedidoList.setIdpedido(pedido.getIdpedido());
-    //                         pedidoList.setDetalle(detalle);
-    //                         return pedidoList;
-    //                     }));
-    // }
+    public Flux<PedidoList> listarPedido() {
+        return pedidoRepository.findAll()
+                .flatMap(pedido -> detallePedidoRepository.findById(pedido.getIdpedido().toString())
+                        .map(detalle -> {
+                            PedidoList pedidoList = new PedidoList();
+                            pedidoList.setIdpedido(pedido.getIdpedido());
+                            pedidoList.setDetalle(detalle);
+                            return pedidoList;
+                        }));
+    }
 }
